@@ -9,7 +9,8 @@ app.use(bodyParser.json());
 
 // Define your routes here
 app.get('/', (req, res) => {
-  res.send('Hello World');
+  const response = { message: 'Hello, World!' };
+  res.json(response);
 });
 
 // Start the server
