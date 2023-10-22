@@ -2,12 +2,12 @@ const express = require('express');
 const sharp = require('sharp');
 const multer = require('multer');
 const AWS = require('aws-sdk');
-
+const cors = require('cors');
 const app = express();
 const port = 3000;
 
 // Middleware
-//new comment
+app.use(cors());
 
 // Set up a multer storage to handle file uploads
 const storage = multer.memoryStorage();

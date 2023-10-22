@@ -1,74 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>React App</title>
-    <link rel="stylesheet" href="/css/custom.css">
-    <style>
-      /* Set the background color and font size for the entire page */
-      body {
-        background-color: #323338; /* Change this to your desired background color */
-        font-size: 16px; /* Change this to your desired font size */
-      }
-  
-      /* Set the font color and size for H1 elements */
-      h1 {
-        color: white; /* Change this to your desired font color */
-        text-align: center;
-      }
-      /* Set the font color and size for H3 elements */
-      h3 {
-        color: white; /* Change this to your desired font color */
-        text-align: center;
-      }
-      label {
-      color: white;
-    }
-    </style>
-    <script async src="https://cdn.jsdelivr.net/npm/es-module-shims@1/dist/es-module-shims.min.js" crossorigin="anonymous"></script>
-    <script type="importmap">
-      {
-        "imports": {
-          "@popperjs/core": "https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/esm/popper.min.js",
-          "bootstrap": "https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.esm.min.js"
-        }
-      }
-    </script>
-    <script></script>
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
-    <script type="module" src="/js/index.js"></script>
-  </head>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CloudA2</title>
+  <link rel="stylesheet" href="/css/custom.css">
+</head>
 <body>
-  <div class="container text-center">
-    <div class="row">
-      <div class="col-12">
-        <h1>React App</h1>
-      </div>
-    </div>
-    <div class="row">
-      <div class="col-12">
-        <h3>This application serves as a versatile media transformation solution, making use of the Cloudinary API. the primary objective and to allow 
-          users to effortlessly enhance and optimise images and videos. With an intuitive user experience and robust API integration this application 
-          simplifies media management with the addition of compressing desired outputs into a 
-          simple zip format for easy download and storage.</h3>
-      </div>
-    </div>
-    <div class="row" style="display: flex; justify-content: center; align-items: center;">
-      <div class="col-12" style="border: 2px solid #fff; background-color: #323338; border: 2px dotted #fff; border-radius: 8px; text-align: center; width: 40%; height: 40vh; line-height: 40vh;">
-        <input type="file" class="form-control" id="inputGroupFile01">
-      </div>
-    </div>
-    
-    <div class="row">
-      <div action="upload.jpg" method="post" enctype="multipart/form-data" style="visibility: hidden;">
-      </div>
-    </div>
-    <div class="row" style="display: flex; justify-content: center; align-items: center;">
-      <div class="col-12" style="padding-top: 2%;">
-        <div action="upload.jpg" method="post" enctype="multipart/form-data">
-        </div>
-      </div>
-    </div>
+  <div id="root"></div>
+  <script type="module" src="/js/index.js"></script>
 </body>
 </html>
