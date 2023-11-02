@@ -4,6 +4,7 @@ import Axios from 'axios';
 
 const myURL = "http://13.55.139.143:3000/"
 
+
 //For testing
 const checkServer = async () => {
     try {
@@ -28,8 +29,25 @@ function Upload() {
         }
         if(file !== null || file !== undefined) {
             setSelectedFile(file);
+            const formdata = new FormData();
+
+            formdata.append(file.name,file);
+
+            // Make the POST request using Axios
+            Axios.post(myURL + "upload", formdata, {
+              headers: { 
+                'Content-Type': 'multipart/form-data',
+              }
+            }) 
+            .then(response => {
+              console.log("file uploaded: ", response.data);
+            })
+            .catch(error => {
+              console.log("error: ", error);
+            })
+
             console.log(file);
-        }
+        } 
     };
 
     const handleAspectRatioChange = (event) => {
@@ -39,7 +57,7 @@ function Upload() {
         // Update the available options for the second dropdown based on the aspect ratio.
         let sizeOptions = [];
         if (aspectRatio === '1x1') {
-            sizeOptions = ['100x100', '125x125', '150x150', '200x200'];
+            sizeOptions = ['100x100', '125x125', '150x150', '200x200']; 
         } else if (aspectRatio === '4x3') {
             sizeOptions = ['640x480', '800x600', '960x720', '1024x768', '1280x960', '1400x1050', '1440x1080'];
         } else if (aspectRatio === '16x9') {
@@ -91,7 +109,7 @@ function Upload() {
     return (
         <div className={styles.uploadContainer}>
           <div>
-            <h2>1. Please upload the file you want to resize</h2>
+            <h2>1. Please upload the file or Search the file you want to resize</h2>
             <label>
               <input type="file" accept="image/*" onChange={handleFileUpload} />
             </label>
@@ -125,7 +143,7 @@ function Upload() {
       
           {selectedFile && selectedAspectRatio && selectedSize && (
             <button className={styles.convertButton} onClick={handleConvert}>Convert</button>
-          )}
+          )} 
         </div>
       );
       

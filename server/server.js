@@ -5,6 +5,7 @@ const AWS = require('aws-sdk');
 const cors = require('cors');
 const app = express();
 const port = 3000;
+require("dotenv").config();
 
 // Middleware
 app.use(cors());
@@ -13,11 +14,55 @@ app.use(cors());
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
-// S3 config
-const s3 = new AWS.S3({
-  accessKeyId: '',
-  secretAccessKey: '',
+// Function to upload to S3
+const uploadToS3 = async (userFile) => {
+  const S3_BUCKET = "clouda2";
+  const REGION = "ap-southeast-2";
+
+  AWS.config.update({
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID, 
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  });
+  const s3 = new AWS.S3({
+    params: { Bucket: S3_BUCKET },
+    region: REGION,
+  });
+
+  const params = {
+    Bucket: S3_BUCKET,
+    Key: "",
+    Body: userFile,
+  };
+
+  var upload = s3
+    .putObject(params)
+    .on("httpUploadProgress", (evt) => {
+      console.log(
+        "Uploading " + parseInt((evt.loaded * 100) / evt.total) + "%"
+      );
+    })
+    .promise();
+
+  await upload.then((err, data) => {
+    console.log(err);
+    alert("File uploaded successfully.");
+  });
+};
+
+// Upload to S3 endpoint
+app.post('/upload', upload.single('image'), (req, res) => {
+  
+  // Check if an image was uploaded
+  if (!req.file) {
+    return res.status(400).json({ error: 'No image file provided' });
+  }
+
+  uploadToS3(req.file);
+
+  return express.json("File uploaded S3")
+
 });
+
 
 // Define your routes here
 app.get('/', (req, res) => {
@@ -26,45 +71,45 @@ app.get('/', (req, res) => {
 });
 
 // resize endpoint
-app.post('/resize', upload.single('image'), (req, res) => {
-  // Check if an image was uploaded
-  if (!req.file) {
-    return res.status(400).json({ error: 'No image file provided' });
-  }
+// app.post('/resize', upload.single('image'), (req, res) => {
+//   // Check if an image was uploaded
+//   if (!req.file) {
+//     return res.status(400).json({ error: 'No image file provided' });
+//   }
 
-  // Parse width height
-  const width = parseInt(req.body.width, 10) || 300;
-  const height = parseInt(req.body.height, 10) || 200;
+//   // Parse width height
+//   const width = parseInt(req.body.width, 10) || 300;
+//   const height = parseInt(req.body.height, 10) || 200;
 
-  sharp(req.file.buffer)
-    .resize(width, height)
-    .toBuffer()
-    .then((resizedImageBuffer) => {
-      const bucketName = 'clouda2-g30';
-      const key = 'formatted/image.jpg'; // add random number?
+//   sharp(req.file.buffer)
+//     .resize(width, height)
+//     .toBuffer()
+//     .then((resizedImageBuffer) => {
+//       const bucketName = 'clouda2-g30';
+//       const key = 'formatted/image.jpg'; // add random number?
 
-      // Upload to s3
-      s3.upload(
-        {
-          Bucket: bucketName,
-          Key: key,
-          Body: resizedImageBuffer,
-          ACL: 'public-read', // permissions look up
-        },
-        (err, data) => {
-          if (err) {
-            return res.status(500).json({ error: 'S3 upload failed' });
-          }
+//       // Upload to s3
+//       s3.upload(
+//         {
+//           Bucket: bucketName,
+//           Key: key,
+//           Body: resizedImageBuffer,
+//           ACL: 'public-read', // permissions look up
+//         },
+//         (err, data) => {
+//           if (err) {
+//             return res.status(500).json({ error: 'S3 upload failed' });
+//           }
 
-          // Send the S3 URL back to the client
-          res.json({ s3Url: data.Location });
-        }
-      );
-    })
-    .catch((error) => {
-      res.status(500).json({ error: 'Image resizing failed' });
-    });
-});
+//           // Send the S3 URL back to the client
+//           res.json({ s3Url: data.Location });
+//         }
+//       );
+//     })
+//     .catch((error) => {
+//       res.status(500).json({ error: 'Image resizing failed' });
+//     });
+// });
 
 // Start the server
 app.listen(port, () => {
