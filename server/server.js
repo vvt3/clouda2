@@ -16,21 +16,11 @@ const upload = multer({ storage: storage });
 
 // Function to upload to S3
 const uploadToS3 = async (userFile) => {
-  const S3_BUCKET = "clouda2";
-  const REGION = "ap-southeast-2";
-
-  AWS.config.update({
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID, 
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-  });
-  const s3 = new AWS.S3({
-    params: { Bucket: S3_BUCKET },
-    region: REGION,
-  });
+  const S3_BUCKET = "clouda2-g30";
 
   const params = {
     Bucket: S3_BUCKET,
-    Key: "",
+    Key: userFile.name,
     Body: userFile,
   };
 
