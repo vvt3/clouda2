@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import styles from '../css/Upload.module.css';
 import Axios from 'axios';
 
-const myURL = "http://13.55.139.143:3000/"
+const myURL = "http://3.25.244.240:3000/"
 
 
 //For testing
