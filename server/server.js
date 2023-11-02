@@ -1,5 +1,4 @@
 const express = require('express');
-const sharp = require('sharp');
 const multer = require('multer');
 const AWS = require('aws-sdk');
 const cors = require('cors');
