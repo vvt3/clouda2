@@ -1,10 +1,29 @@
 .header {
-    background-color: #0074cc;
+    background-color: #000000;
     color: white;
-    text-align: center;
     padding: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .header h1 {
     font-size: 36px;
+    margin-left: 10px;
+}
+
+.header img {
+    width: 48px;
+    height: 48px;
+}
+
+.footer {
+    background-color: #000000;
+    padding: 10px;
+    flex: 1;
+    height: 50px;
+    position: absolute;
+    left:0;
+    bottom:0;
+    right:0;
 }
