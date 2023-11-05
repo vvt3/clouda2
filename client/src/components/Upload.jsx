@@ -1,17 +1,24 @@
 import React, { useState } from 'react';
 import styles from '../css/Upload.module.css';
 import Axios from 'axios';
+const FormData = require('form-data');
+// Manually set the Content-Type header
+const config = {
+  headers: {
+    'Content-Type': 'multipart/form-data',
+  }
+};
 
-const myURL = "http://3.25.244.240:3000/"
-
+const myURL = "http://13.236.165.251:3000/"
+const uploadURL = "http://13.236.165.251:3000/upload"
 
 //For testing
-const checkServer = async () => {
-    try {
-      const response = await Axios.get(myURL);
-      console.log('Server is reachable:', response.data);
-    } catch (error) {
-      console.error('Error reaching the server:', error);
+const checkIndex = async () => {
+    if (!('indexedDB' in window)) {
+      console.log('IndexedDB is not supported in this browser.');
+    }
+    else {
+      console.log('IndexedDB is supported');
     }
   };
 
@@ -21,32 +28,45 @@ function Upload() {
     const [selectedSize, setSelectedSize] = useState('');
     const [sizeOptions, setSizeOptions] = useState([]);
 
+    const [myOutput, setMyOutput] = useState([]);
+    //checkIndex();
+
+    const handleUserFile = () => {
+      if (selectedFile !== null && selectedFile !== undefined) {
+
+        console.log("Appended: ", selectedFile);
+
+        const formdata = new FormData();
+        formdata.append("file", selectedFile, selectedFile.originalname);
+    
+        // Log the contents of the FormData and the selected file
+        // for (var key of formdata.entries()) {
+        //   console.log(key);
+        // }
+    
+        // Make the GET request using Axios
+        Axios.post(uploadURL, formdata, config)
+        .then(response => {
+          console.log("file uploaded: ", response.data);
+        })
+        .catch(error => {
+          console.log("error: ", error);
+        })
+      } 
+      else {
+        console.log("No file selected.");
+      }
+    }
+
     const handleFileUpload = (event) => {
+        event.preventDefault();
         const file = event.target.files[0];
         if(file === undefined) {
             setSelectedFile(null)
             console.log("file was removed?");
         }
-        if(file !== null || file !== undefined) {
+        if(file !== null && file !== undefined) {
             setSelectedFile(file);
-            const formdata = new FormData();
-
-            formdata.append(file.name,file);
-
-            // Make the POST request using Axios
-            Axios.post(myURL + "upload", formdata, {
-              headers: { 
-                'Content-Type': 'multipart/form-data',
-              }
-            }) 
-            .then(response => {
-              console.log("file uploaded: ", response.data);
-            })
-            .catch(error => {
-              console.log("error: ", error);
-            })
-
-            console.log(file);
         } 
     };
 
@@ -72,38 +92,32 @@ function Upload() {
     };
 
     const handleConvert = () => {
-        if (selectedFile && selectedSize) {
-            // Create a FormData object to send the selected file
-            const formData = new FormData();
-            formData.append('file', selectedFile);
+        if (!selectedFile || !selectedSize) {
+          console.log('No file and size selected.');
+          return;
+        }
 
-            // Endpoint url
-            const resizeURL = "http://13.55.139.143:3000/";
+        const [width, height] = selectedSize.split('x');
 
-            // Define the request data, including the file, size, and aspect ratio
-            const requestData = {
-                size: selectedSize,
-            };
+        // Create a new FormData object to send data to the server
+        const formData = new FormData();
+        formData.append('file', selectedFile);
+        formData.append('width', width);
+        formData.append('height', height);
 
-            // // Make a POST request to the API
-            // Axios.get(resizeURL, requestData, {
-            //     headers: {
-            //     'Content-Type': 'multipart/form-data', // Important when sending files
-            //     },
-            // })
-            // .then((response) => {
-            // // Handle the successful response from the API
-            // console.log('Image resized successfully:', response.data);
-            // // You can update your UI or perform any other actions here.
-            // })
-            // .catch((error) => {
-            // // Handle any errors from the API request
-            // console.error('Error resizing image:', error);
-            // }
-            checkServer();
+        // Make a POST request to your server to initiate the conversion
+        Axios.post(myURL + 'resize', formData, config)
+        .then((response) => {
+          console.log('Image converted successfully.');
+          // Display the converted image to the user
+          setMyOutput(response.data)
+          console.log('Recieved: '. myOutput);
+        })
+        .catch(error => {
+        console.error('Error during conversion: ', error);
+        });
 
         console.log(`I am converting ${selectedFile.name} to this size: ${selectedSize}`);
-        }
     };
 
     return (
@@ -111,8 +125,9 @@ function Upload() {
           <div>
             <h2>1. Please upload the file or Search the file you want to resize</h2>
             <label>
-              <input type="file" accept="image/*" onChange={handleFileUpload} />
+              <input type="file" name="file" accept="image/*" id="fileInput" onChange={handleFileUpload} required/>
             </label>
+            <button onClick={handleUserFile} >Upload</button>
           </div>
           
           {selectedFile && (
