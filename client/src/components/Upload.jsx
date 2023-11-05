@@ -9,8 +9,7 @@ const config = {
   }
 };
 
-const myURL = "http://13.236.165.251:3000/"
-const uploadURL = "http://13.236.165.251:3000/upload"
+const myURL = "http://54.253.242.37:3000/"
 
 //For testing
 const checkIndex = async () => {
@@ -45,7 +44,7 @@ function Upload() {
         // }
     
         // Make the GET request using Axios
-        Axios.post(uploadURL, formdata, config)
+        Axios.post(myURL + "upload", formdata, config)
         .then(response => {
           console.log("file uploaded: ", response.data);
         })
@@ -101,17 +100,17 @@ function Upload() {
 
         // Create a new FormData object to send data to the server
         const formData = new FormData();
-        formData.append('file', selectedFile);
+        formData.append('file', selectedFile, selectedFile.originalname);
         formData.append('width', width);
         formData.append('height', height);
 
         // Make a POST request to your server to initiate the conversion
         Axios.post(myURL + 'resize', formData, config)
         .then((response) => {
-          console.log('Image converted successfully.');
+          console.log('Image converted successfully.', response.data);
           // Display the converted image to the user
-          setMyOutput(response.data)
-          console.log('Recieved: '. myOutput);
+          //setMyOutput(myURL + 'path/to/output.jpg');
+          //console.log('Recieved: ', myOutput);
         })
         .catch(error => {
         console.error('Error during conversion: ', error);

@@ -9,7 +9,7 @@ const { spawn } = require('child_process');
 
 // Middleware
 app.use(cors());
-app.user(express.json());
+app.use(express.json());
 
 const s3 = new AWS.S3();
 const S3_BUCKET = 'clouda2-g30';
@@ -58,29 +58,40 @@ app.get('/', (req, res) => {
 });
 
 //Resize endpoint
-app.post('/resize', upload.single('image'), (req, res) => {
+app.post('/resize', upload.single('file'), (req, res) => {
   const userFile = req.file;
   const width = req.body.width;
   const height = req.body.height;
   // Check if an image was uploaded
-  if (!userFile) {
+  if (!req.file) {
     return res.status(400).json({ error: 'No image file provided' });
   }
-
   //image conversion using ImageMagick
-  const resize = spawn('convert', [userFile, '-resize', `${width}x${height}`, 'output.jpg']);
+  // Temp buffer
+  //const outputBuffer = Buffer.from([]);
+  //const outputName = "output_" + Date.now() + ".jpg";
+  //const outputPath = path.join(__dirname, "temp", outputName);
 
-  resize.stdout.on('data', data => {
+  const convertArgs = [
+    'jpg:-',
+    '-resize',
+    `${width}x${height}`,
+    'jpg:-',
+  ];
+  const convert = spawn('/usr/bin/convert', convertArgs);
+
+  convert.stdout.on('data', data => {
     console.log(`stdout: ${data}`);
   });
 
-  resize.stderr.on('data', data => {
+  convert.stderr.on('data', data => {
     console.error(`stderr: ${data}`);
   });
 
-  resize.on('close', code => {
+  convert.on('close', code => {
     if (code === 0) {
       // Conversion successful
+      res.contentType('image/jpeg');
       res.sendFile('output.jpg');
     } else {
       // Conversion failed
