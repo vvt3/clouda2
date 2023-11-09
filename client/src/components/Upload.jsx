@@ -1,34 +1,148 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import styles from '../css/Upload.module.css';
 import Axios from 'axios';
+import { ProgressBar } from 'react-bootstrap';
+
 const FormData = require('form-data');
 // Manually set the Content-Type header
 const config = {
   headers: {
+    timeout: 10000, //10 seconds
     'Content-Type': 'multipart/form-data',
   }
 };
 
-const myURL = "http://54.253.242.37:3000/"
+const myURL = "http://3.106.141.114:3000/";
+const mongoURL = "http://13.210.221.120/";
+const userStore = "userImagesDB";
+const dbVer = 2;
 
-//For testing
-const checkIndex = async () => {
-    if (!('indexedDB' in window)) {
-      console.log('IndexedDB is not supported in this browser.');
-    }
-    else {
-      console.log('IndexedDB is supported');
-    }
+// Function to store image data in IndexedDB
+const storeImageInIndexedDB = (imageData) => {
+  const dbName = userStore;
+  const dbVersion = dbVer;
+
+  const request = indexedDB.open(dbName, dbVersion);
+
+  request.onerror = (event) => {
+    console.error('Error opening database:', event.target.error);
   };
 
+  request.onsuccess = (event) => {
+    const db = event.target.result;
+    const transaction = db.transaction(['images'], 'readwrite');
+    const store = transaction.objectStore('images');
+
+    const imageRecord = {
+      data: imageData,
+      timestamp: getDateTime(),
+    };
+
+    const addRequest = store.add(imageRecord);
+
+    addRequest.onsuccess = (event) => {
+      console.log('Image stored indexedDB with key:', event.target.result);
+    };
+
+    addRequest.onerror = (event) => {
+      console.error('Error storing image:', event.target.error);
+    };
+  };
+};
+
+const saveMongo = async (imageData) => {
+  try {
+    const timestamp = getDateTime();
+
+    // Assuming you have an API endpoint /saveImage on your server
+    const response = await fetch('http://13.210.221.120/savetodb', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        data: imageData,
+        timestamp,
+      }),
+    });
+
+    if (response.ok) {
+      console.log('Image saved to server successfully');
+    } else {
+      console.error('Error saving image to server:', response.statusText);
+    }
+  } catch (error) {
+    console.error('Error saving image to server:', error.message);
+  }
+};
+
+// Get Date
+const getDateTime = () => {
+  const now = new Date();
+
+  const day = now.getDate().toString().padStart(2, '0');
+  const month = (now.getMonth() + 1).toString().padStart(2, '0');
+  const year = now.getFullYear();
+  const hours = now.getHours().toString().padStart(2, '0');
+  const minutes = now.getMinutes().toString().padStart(2, '0');
+
+  return `${day}/${month}/${year} - ${hours}:${minutes}`;
+};
+
+const dbSetup = async () => {
+  if (!('indexedDB' in window)) {
+      console.log('IndexedDB is not supported in this browser.');
+      return;
+  }
+
+  const dbName = userStore;
+  const dbVersion = dbVer;
+  const request = indexedDB.open(dbName, dbVersion);
+
+  request.onerror = (event) => {
+      console.error('Error opening database:', event.target.error);
+  };
+
+  request.onupgradeneeded = (event) => {
+      const db = event.target.result;
+      const store = db.createObjectStore('images', { keyPath: 'id', autoIncrement: true });
+  };
+};
+
 function Upload() {
+    const [searchInput, setSearchInput] = useState("");
+    const [s3Files, sets3Files] = useState([]);
     const [selectedFile, setSelectedFile] = useState(null);
     const [selectedAspectRatio, setSelectedAspectRatio] = useState('');
     const [selectedSize, setSelectedSize] = useState('');
     const [sizeOptions, setSizeOptions] = useState([]);
+    const [conversionProgress, setConversionProgress] = useState(0);
+    const [outURL, setOutURL] = useState(null);
 
-    const [myOutput, setMyOutput] = useState([]);
-    //checkIndex();
+    useEffect(() => {
+      // run once
+      dbSetup();
+  }, []);
+
+    const handleSearch = (event) => {
+      event.preventDefault();
+      setSearchInput(event.target.value);
+    };
+    
+    const handleGetS3 = () => {
+
+      //test db
+
+
+      // make Get to get s3 files in array
+      Axios.get(myURL + "/gets3")
+        .then(response => {
+          console.log("recieved: ", response);
+        })
+        .catch(error => {
+          console.log("error: ", error);
+        })
+    }
 
     const handleUserFile = () => {
       if (selectedFile !== null && selectedFile !== undefined) {
@@ -38,12 +152,7 @@ function Upload() {
         const formdata = new FormData();
         formdata.append("file", selectedFile, selectedFile.originalname);
     
-        // Log the contents of the FormData and the selected file
-        // for (var key of formdata.entries()) {
-        //   console.log(key);
-        // }
-    
-        // Make the GET request using Axios
+        // Make the POSTS request using Axios
         Axios.post(myURL + "upload", formdata, config)
         .then(response => {
           console.log("file uploaded: ", response.data);
@@ -97,36 +206,62 @@ function Upload() {
         }
 
         const [width, height] = selectedSize.split('x');
-
         // Create a new FormData object to send data to the server
         const formData = new FormData();
         formData.append('file', selectedFile, selectedFile.originalname);
         formData.append('width', width);
         formData.append('height', height);
 
-        // Make a POST request to your server to initiate the conversion
-        Axios.post(myURL + 'resize', formData, config)
-        .then((response) => {
-          console.log('Image converted successfully.', response.data);
-          // Display the converted image to the user
-          //setMyOutput(myURL + 'path/to/output.jpg');
-          //console.log('Recieved: ', myOutput);
+        // Make a POST request to your server
+        Axios.post(myURL + 'resize', formData, {
+          ...config,
+          responseType: 'arraybuffer',
+          onUploadProgress: (progressEvent) => {
+            const progress = (progressEvent.loaded / progressEvent.total) * 100;
+            setConversionProgress(progress);
+          },
         })
-        .catch(error => {
-        console.error('Error during conversion: ', error);
-        });
-
-        console.log(`I am converting ${selectedFile.name} to this size: ${selectedSize}`);
+        .then((response) => {
+          if (response.status === 200) {
+            const arrayBuffer = response.data;
+            // Create a Blob from the array buffer
+            const blob = new Blob([arrayBuffer], { type: 'image/jpeg' });
+            // Create a Blob URL
+            const blobURL = URL.createObjectURL(blob);
+            // save the url
+            setOutURL(blobURL);
+            // Reset the conversion progress to 0 when done
+            setConversionProgress(0);
+            // Store the image in the database
+            storeImageInIndexedDB(arrayBuffer);
+            //saveMongo(arrayBuffer);
+          } else {
+            console.error('Error during conversion: ', response.statusText);
+            // Reset the conversion progress to 0 when an error occurs
+            setConversionProgress(0);
+          }
+          })
+          .catch((error) => {
+            console.error('Error during conversion: ', error);
+            // Reset the conversion progress to 0 when an error occurs
+            setConversionProgress(0);
+          });   
     };
 
     return (
         <div className={styles.uploadContainer}>
           <div>
-            <h2>1. Please upload the file or Search the file you want to resize</h2>
-            <label>
-              <input type="file" name="file" accept="image/*" id="fileInput" onChange={handleFileUpload} required/>
-            </label>
-            <button onClick={handleUserFile} >Upload</button>
+            <h2>1. Search or upload the file you want to resize</h2>
+            <div className={styles.inputContainer}>
+              <div className={styles.search}>
+                <input type="text" placeholder="Your-Image.jpeg" onChange={handleSearch} value={searchInput} />
+                <button onClick={handleGetS3}>Search</button>
+              </div>
+              <div className={styles.upload}>
+                <input type="file" name="file" accept="image/*" id="fileInput" onChange={handleFileUpload} required />
+                <button onClick={handleUserFile}>Upload</button>
+              </div>
+            </div>  
           </div>
           
           {selectedFile && (
@@ -156,10 +291,34 @@ function Upload() {
           )}
       
           {selectedFile && selectedAspectRatio && selectedSize && (
-            <button className={styles.convertButton} onClick={handleConvert}>Convert</button>
-          )} 
+      <div>
+        {conversionProgress > 0 && conversionProgress < 100 ? (
+          <ProgressBar padding="10px" fontSize="20px"
+            now={conversionProgress}
+            label={`${conversionProgress.toFixed(2)}%`}
+            animated={conversionProgress > 0 && conversionProgress < 100}
+          />
+        ) : (
+          <button className={styles.convertButton} onClick={handleConvert}>
+            Convert
+          </button>
+        )}
+      </div>
+    )}
+        <div className={styles.divider}>
         </div>
-      );
-      
+        <div>
+          { outURL && (
+          <div>
+            <img src={outURL} alt="Resized" onError={(e) => console.log("Image loading error", e)}/>
+            
+          </div>
+          )}
+        </div>
+        <div className={styles.divider}>
+        </div>
+        </div>
+    );
 }
+
 export default Upload;

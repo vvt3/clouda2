@@ -5,7 +5,7 @@ const app = express();
 const port = 3000;
 const multer = require("multer");
 const upload = multer();
-const { spawn } = require('child_process');
+const gm = require('gm').subClass({ imageMagick: true });
 
 // Middleware
 app.use(cors());
@@ -22,12 +22,10 @@ app.post('/testing', upload.single("file"), (req, res) => {
 // Upload to S3 endpoint
 app.post('/upload', upload.single("file"), (req, res) => {
   const userFile = req.file;
-  //console.log("Received file: ", userFile.originalname);
   // Check if an image was uploaded
   if (!userFile) {
     return res.status(400).json({ error: 'No image file provided' });
   }
-
   //Buffer
   let buff = Buffer.from(userFile.buffer, "binary");
   //Key
@@ -62,43 +60,50 @@ app.post('/resize', upload.single('file'), (req, res) => {
   const userFile = req.file;
   const width = req.body.width;
   const height = req.body.height;
-  // Check if an image was uploaded
-  if (!req.file) {
+
+  if (!userFile) {
     return res.status(400).json({ error: 'No image file provided' });
   }
-  //image conversion using ImageMagick
-  // Temp buffer
-  //const outputBuffer = Buffer.from([]);
-  //const outputName = "output_" + Date.now() + ".jpg";
-  //const outputPath = path.join(__dirname, "temp", outputName);
 
-  const convertArgs = [
-    'jpg:-',
-    '-resize',
-    `${width}x${height}`,
-    'jpg:-',
-  ];
-  const convert = spawn('/usr/bin/convert', convertArgs);
+  // Perform image resizing using gm
+  gm(userFile.buffer)
+    .resize(width, height)
+    .toBuffer('JPEG', (err, buffer) => {
+      if (err) {
+        console.error('Image conversion failed:', err);
+        return res.status(500).send('Image conversion failed.');
+      }
 
-  convert.stdout.on('data', data => {
-    console.log(`stdout: ${data}`);
-  });
-
-  convert.stderr.on('data', data => {
-    console.error(`stderr: ${data}`);
-  });
-
-  convert.on('close', code => {
-    if (code === 0) {
-      // Conversion successful
       res.contentType('image/jpeg');
-      res.sendFile('output.jpg');
-    } else {
-      // Conversion failed
-      res.status(500).send('Image conversion failed.');
-    }
-  });
+      res.send(buffer);
+            console.log("Conversion Sucess!");
+    });
+});
 
+// Get s3 endpoint
+app.get("/gets3", (req, res) => {
+  const fileName = req.query.fileName;
+
+  // Set up parameters for getObject method
+  const params = {
+    Bucket: S3_BUCKET,
+    Key: fileName,
+  };
+  // Use getObject to retrieve the file
+  s3.getObject(params, (err, data) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).send('Error retrieving file from S3');
+    }
+    // Set response headers based on the S3 response
+    res.set({
+      'Content-Type': data.ContentType,
+      'Content-Length': data.ContentLength,
+    });
+
+    // Send the file data in the response
+    res.send(data.Body);
+  });
 });
 
 // Start the server
