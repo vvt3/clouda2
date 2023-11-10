@@ -1,52 +1,190 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import styles from '../css/Upload.module.css';
 import Axios from 'axios';
+import { ProgressBar } from 'react-bootstrap';
 
-const myURL = "http://3.25.244.240:3000/"
+const FormData = require('form-data');
+// Manually set the Content-Type header
+const config = {
+  headers: {
+    timeout: 10000, //10 seconds
+    'Content-Type': 'multipart/form-data',
+  }
+};
 
+//const myURL = "http://3.26.51.48:3000/";
+const myURL = "clouda2-g30-LoadBalancer2-1778561856.ap-southeast-2.elb.amazonaws.com/";
+const mongoURL = "http://13.210.221.120/";
+const userStore = "userImagesDB";
+const dbVer = 2;
 
-//For testing
-const checkServer = async () => {
-    try {
-      const response = await Axios.get(myURL);
-      console.log('Server is reachable:', response.data);
-    } catch (error) {
-      console.error('Error reaching the server:', error);
-    }
+// Function to store image data in IndexedDB
+const storeImageInIndexedDB = (imageData) => {
+  const dbName = userStore;
+  const dbVersion = dbVer;
+
+  const request = indexedDB.open(dbName, dbVersion);
+
+  request.onerror = (event) => {
+    console.error('Error opening database:', event.target.error);
   };
 
+  request.onsuccess = (event) => {
+    const db = event.target.result;
+    const transaction = db.transaction(['images'], 'readwrite');
+    const store = transaction.objectStore('images');
+
+    const imageRecord = {
+      data: imageData,
+      timestamp: getDateTime(),
+    };
+
+    const addRequest = store.add(imageRecord);
+
+    addRequest.onsuccess = (event) => {
+      console.log('Image stored indexedDB with key:', event.target.result);
+    };
+
+    addRequest.onerror = (event) => {
+      console.error('Error storing image:', event.target.error);
+    };
+  };
+};
+
+const saveMongo = async (imageData) => {
+  try {
+    const timestamp = getDateTime();
+
+    // Assuming you have an API endpoint /saveImage on your server
+    const response = await fetch('http://13.210.221.120/savetodb', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        data: imageData,
+        timestamp,
+      }),
+    });
+
+    if (response.ok) {
+      console.log('Image saved to server successfully');
+    } else {
+      console.error('Error saving image to server:', response.statusText);
+    }
+  } catch (error) {
+    console.error('Error saving image to server:', error.message);
+  }
+};
+
+// Get Date
+const getDateTime = () => {
+  const now = new Date();
+
+  const day = now.getDate().toString().padStart(2, '0');
+  const month = (now.getMonth() + 1).toString().padStart(2, '0');
+  const year = now.getFullYear();
+  const hours = now.getHours().toString().padStart(2, '0');
+  const minutes = now.getMinutes().toString().padStart(2, '0');
+
+  return `${day}/${month}/${year} - ${hours}:${minutes}`;
+};
+
+const dbSetup = async () => {
+  if (!('indexedDB' in window)) {
+      console.log('IndexedDB is not supported in this browser.');
+      return;
+  }
+
+  const dbName = userStore;
+  const dbVersion = dbVer;
+  const request = indexedDB.open(dbName, dbVersion);
+
+  request.onerror = (event) => {
+      console.error('Error opening database:', event.target.error);
+  };
+
+  request.onupgradeneeded = (event) => {
+      const db = event.target.result;
+      const store = db.createObjectStore('images', { keyPath: 'id', autoIncrement: true });
+  };
+};
+
 function Upload() {
+    const [searchInput, setSearchInput] = useState("");
     const [selectedFile, setSelectedFile] = useState(null);
     const [selectedAspectRatio, setSelectedAspectRatio] = useState('');
     const [selectedSize, setSelectedSize] = useState('');
     const [sizeOptions, setSizeOptions] = useState([]);
+    const [conversionProgress, setConversionProgress] = useState(0);
+    const [outURL, setOutURL] = useState(null);
+    const [userFileName, setUserFileName] = useState('');
+
+    useEffect(() => {
+      // run once
+      dbSetup();
+  }, []);
+
+    const handleSearch = (event) => {
+      event.preventDefault();
+      setSearchInput(event.target.value);
+    };
+    
+    const handleGetS3 = () => {
+      // make Get to get s3 files in array
+      const fileName = searchInput;
+
+      if (!fileName) {
+        console.log("No text input provided...");
+        return;
+      }
+      Axios.get(`${myURL}gets3?fileName=${fileName}`, { responseType: 'blob' })
+        .then(response => {
+          console.log("recieved: ", response);
+          setSelectedFile(response.data);
+          setUserFileName(fileName);
+        })
+        .catch(error => {
+          setSelectedFile(null);
+          setUserFileName('');
+          console.log(fileName, "not found on s3");
+          console.log("error: ", error);
+        })
+    }
+
+    const handleUserFile = () => {
+      if (selectedFile !== null && selectedFile !== undefined) {
+
+        console.log("Appended: ", selectedFile);
+
+        const formdata = new FormData();
+        formdata.append("file", selectedFile, selectedFile.originalname);
+    
+        // Make the POSTS request using Axios
+        Axios.post(myURL + "upload", formdata, config)
+        .then(response => {
+          console.log("file uploaded: ", response.data);
+        })
+        .catch(error => {
+          console.log("error: ", error);
+        })
+      } 
+      else {
+        console.log("No file selected.");
+      }
+    }
 
     const handleFileUpload = (event) => {
+        event.preventDefault();
         const file = event.target.files[0];
         if(file === undefined) {
             setSelectedFile(null)
+            setUserFileName('');
             console.log("file was removed?");
         }
-        if(file !== null || file !== undefined) {
+        if(file !== null && file !== undefined) {
             setSelectedFile(file);
-            const formdata = new FormData();
-
-            formdata.append(file.name,file);
-
-            // Make the POST request using Axios
-            Axios.post(myURL + "upload", formdata, {
-              headers: { 
-                'Content-Type': 'multipart/form-data',
-              }
-            }) 
-            .then(response => {
-              console.log("file uploaded: ", response.data);
-            })
-            .catch(error => {
-              console.log("error: ", error);
-            })
-
-            console.log(file);
+            setUserFileName(file.name);
         } 
     };
 
@@ -72,47 +210,71 @@ function Upload() {
     };
 
     const handleConvert = () => {
-        if (selectedFile && selectedSize) {
-            // Create a FormData object to send the selected file
-            const formData = new FormData();
-            formData.append('file', selectedFile);
-
-            // Endpoint url
-            const resizeURL = "http://13.55.139.143:3000/";
-
-            // Define the request data, including the file, size, and aspect ratio
-            const requestData = {
-                size: selectedSize,
-            };
-
-            // // Make a POST request to the API
-            // Axios.get(resizeURL, requestData, {
-            //     headers: {
-            //     'Content-Type': 'multipart/form-data', // Important when sending files
-            //     },
-            // })
-            // .then((response) => {
-            // // Handle the successful response from the API
-            // console.log('Image resized successfully:', response.data);
-            // // You can update your UI or perform any other actions here.
-            // })
-            // .catch((error) => {
-            // // Handle any errors from the API request
-            // console.error('Error resizing image:', error);
-            // }
-            checkServer();
-
-        console.log(`I am converting ${selectedFile.name} to this size: ${selectedSize}`);
+        if (!selectedFile || !selectedSize) {
+          console.log('No file and size selected.');
+          return;
         }
+
+        const [width, height] = selectedSize.split('x');
+        // Create a new FormData object to send data to the server
+        const formData = new FormData();
+        formData.append('file', selectedFile, selectedFile.originalname);
+        formData.append('width', width);
+        formData.append('height', height);
+
+        // Make a POST request to your server
+        Axios.post(myURL + 'resize', formData, {
+          ...config,
+          responseType: 'arraybuffer',
+          onUploadProgress: (progressEvent) => {
+            const progress = (progressEvent.loaded / progressEvent.total) * 100;
+            setConversionProgress(progress);
+          },
+        })
+        .then((response) => {
+          if (response.status === 200) {
+            const arrayBuffer = response.data;
+            // Create a Blob from the array buffer
+            const blob = new Blob([arrayBuffer], { type: 'image/jpeg' });
+            // Create a Blob URL
+            const blobURL = URL.createObjectURL(blob);
+            // save the url
+            setOutURL(blobURL);
+            // Reset the conversion progress to 0 when done
+            setConversionProgress(0);
+            // Store the image in the database
+            storeImageInIndexedDB(arrayBuffer);
+            //saveMongo(arrayBuffer);
+          } else {
+            console.error('Error during conversion: ', response.statusText);
+            // Reset the conversion progress to 0 when an error occurs
+            setConversionProgress(0);
+          }
+          })
+          .catch((error) => {
+            console.error('Error during conversion: ', error);
+            // Reset the conversion progress to 0 when an error occurs
+            setConversionProgress(0);
+          });   
     };
 
     return (
         <div className={styles.uploadContainer}>
           <div>
-            <h2>1. Please upload the file or Search the file you want to resize</h2>
-            <label>
-              <input type="file" accept="image/*" onChange={handleFileUpload} />
-            </label>
+            <h2>1. Search or upload the file you want to resize</h2>
+            <div className={styles.inputContainer}>
+              <div className={styles.search}>
+                <input type="text" placeholder="Your-Image.jpeg" onChange={handleSearch} value={searchInput} />
+                <button onClick={handleGetS3}>Search</button>
+              </div>
+              <div className={styles.upload}>
+                <input type="file" name="file" accept="image/*" id="fileInput" onChange={handleFileUpload} required />
+                <button onClick={handleUserFile}>Upload</button>
+              </div>
+              <div className={styles.uFile}>
+                <h4> Your file: {userFileName} </h4>
+              </div>
+            </div>  
           </div>
           
           {selectedFile && (
@@ -142,10 +304,34 @@ function Upload() {
           )}
       
           {selectedFile && selectedAspectRatio && selectedSize && (
-            <button className={styles.convertButton} onClick={handleConvert}>Convert</button>
-          )} 
+      <div>
+        {conversionProgress > 0 && conversionProgress < 100 ? (
+          <ProgressBar padding="10px" fontSize="20px"
+            now={conversionProgress}
+            label={`${conversionProgress.toFixed(2)}%`}
+            animated={conversionProgress > 0 && conversionProgress < 100}
+          />
+        ) : (
+          <button className={styles.convertButton} onClick={handleConvert}>
+            Convert
+          </button>
+        )}
+      </div>
+    )}
+        <div className={styles.divider}>
         </div>
-      );
-      
+        <div>
+          { outURL && (
+          <div>
+            <img src={outURL} alt="Resized" onError={(e) => console.log("Image loading error", e)}/>
+            
+          </div>
+          )}
+        </div>
+        <div className={styles.divider}>
+        </div>
+        </div>
+    );
 }
+
 export default Upload;
