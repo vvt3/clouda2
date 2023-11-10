@@ -12,7 +12,8 @@ const config = {
   }
 };
 
-const myURL = "http://3.106.141.114:3000/";
+//const myURL = "http://3.26.51.48:3000/";
+const myURL = "clouda2-g30-LoadBalancer2-1778561856.ap-southeast-2.elb.amazonaws.com/";
 const mongoURL = "http://13.210.221.120/";
 const userStore = "userImagesDB";
 const dbVer = 2;
@@ -111,13 +112,13 @@ const dbSetup = async () => {
 
 function Upload() {
     const [searchInput, setSearchInput] = useState("");
-    const [s3Files, sets3Files] = useState([]);
     const [selectedFile, setSelectedFile] = useState(null);
     const [selectedAspectRatio, setSelectedAspectRatio] = useState('');
     const [selectedSize, setSelectedSize] = useState('');
     const [sizeOptions, setSizeOptions] = useState([]);
     const [conversionProgress, setConversionProgress] = useState(0);
     const [outURL, setOutURL] = useState(null);
+    const [userFileName, setUserFileName] = useState('');
 
     useEffect(() => {
       // run once
@@ -130,16 +131,23 @@ function Upload() {
     };
     
     const handleGetS3 = () => {
-
-      //test db
-
-
       // make Get to get s3 files in array
-      Axios.get(myURL + "/gets3")
+      const fileName = searchInput;
+
+      if (!fileName) {
+        console.log("No text input provided...");
+        return;
+      }
+      Axios.get(`${myURL}gets3?fileName=${fileName}`, { responseType: 'blob' })
         .then(response => {
           console.log("recieved: ", response);
+          setSelectedFile(response.data);
+          setUserFileName(fileName);
         })
         .catch(error => {
+          setSelectedFile(null);
+          setUserFileName('');
+          console.log(fileName, "not found on s3");
           console.log("error: ", error);
         })
     }
@@ -171,10 +179,12 @@ function Upload() {
         const file = event.target.files[0];
         if(file === undefined) {
             setSelectedFile(null)
+            setUserFileName('');
             console.log("file was removed?");
         }
         if(file !== null && file !== undefined) {
             setSelectedFile(file);
+            setUserFileName(file.name);
         } 
     };
 
@@ -260,6 +270,9 @@ function Upload() {
               <div className={styles.upload}>
                 <input type="file" name="file" accept="image/*" id="fileInput" onChange={handleFileUpload} required />
                 <button onClick={handleUserFile}>Upload</button>
+              </div>
+              <div className={styles.uFile}>
+                <h4> Your file: {userFileName} </h4>
               </div>
             </div>  
           </div>

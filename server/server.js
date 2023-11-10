@@ -83,7 +83,6 @@ app.post('/resize', upload.single('file'), (req, res) => {
 // Get s3 endpoint
 app.get("/gets3", (req, res) => {
   const fileName = req.query.fileName;
-
   // Set up parameters for getObject method
   const params = {
     Bucket: S3_BUCKET,
