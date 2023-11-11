@@ -6,6 +6,7 @@ const userStore = "userImagesDB";
 function History() {
   const [imageData, setImageData] = useState([]);
 
+  // Get Database files
   const fetchDB = () => {
     const dbName = userStore;
     const request = indexedDB.open(dbName);
