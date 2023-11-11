@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import styles from '../css/Upload.module.css';
 import Axios from 'axios';
 import { ProgressBar } from 'react-bootstrap';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const FormData = require('form-data');
 // Manually set the Content-Type header
@@ -12,11 +14,22 @@ const config = {
   }
 };
 
-//const myURL = "http://3.26.51.48:3000/";
-const myURL = "clouda2-g30-LoadBalancer2-1778561856.ap-southeast-2.elb.amazonaws.com/";
-const mongoURL = "http://13.210.221.120/";
+//const myURL = 'http://3.26.51.48:3000/';
+const myURL = 'http://clouda2-g30-LoadBalancer2-1778561856.ap-southeast-2.elb.amazonaws.com';
+// Set the default base URL for all Axios requests
+Axios.defaults.baseURL = myURL;
 const userStore = "userImagesDB";
 const dbVer = 2;
+
+const testConnection = () => {
+  Axios.get()
+  .then(response => {
+    console.log("recieved: ", response);
+  })
+  .catch(error => {
+    console.log("error: ", error);
+  })
+};
 
 // Function to store image data in IndexedDB
 const storeImageInIndexedDB = (imageData) => {
@@ -49,32 +62,6 @@ const storeImageInIndexedDB = (imageData) => {
       console.error('Error storing image:', event.target.error);
     };
   };
-};
-
-const saveMongo = async (imageData) => {
-  try {
-    const timestamp = getDateTime();
-
-    // Assuming you have an API endpoint /saveImage on your server
-    const response = await fetch('http://13.210.221.120/savetodb', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        data: imageData,
-        timestamp,
-      }),
-    });
-
-    if (response.ok) {
-      console.log('Image saved to server successfully');
-    } else {
-      console.error('Error saving image to server:', response.statusText);
-    }
-  } catch (error) {
-    console.error('Error saving image to server:', error.message);
-  }
 };
 
 // Get Date
@@ -120,6 +107,11 @@ function Upload() {
     const [outURL, setOutURL] = useState(null);
     const [userFileName, setUserFileName] = useState('');
 
+    // Toasts
+    const showToast = (message) => {
+      toast(message);
+    };
+
     useEffect(() => {
       // run once
       dbSetup();
@@ -135,35 +127,32 @@ function Upload() {
       const fileName = searchInput;
 
       if (!fileName) {
-        console.log("No text input provided...");
+        showToast('No Input Provided...');
         return;
       }
-      Axios.get(`${myURL}gets3?fileName=${fileName}`, { responseType: 'blob' })
+      // Axios GET request to retrieve by file name
+      Axios.get(`${myURL}/gets3?fileName=${fileName}`, { responseType: 'blob' })
         .then(response => {
-          console.log("recieved: ", response);
           setSelectedFile(response.data);
           setUserFileName(fileName);
         })
         .catch(error => {
           setSelectedFile(null);
           setUserFileName('');
-          console.log(fileName, "not found on s3");
+          showToast('File not Found');
           console.log("error: ", error);
         })
     }
 
     const handleUserFile = () => {
       if (selectedFile !== null && selectedFile !== undefined) {
-
-        console.log("Appended: ", selectedFile);
-
         const formdata = new FormData();
         formdata.append("file", selectedFile, selectedFile.originalname);
     
         // Make the POSTS request using Axios
-        Axios.post(myURL + "upload", formdata, config)
+        Axios.post(myURL + "/upload", formdata, config)
         .then(response => {
-          console.log("file uploaded: ", response.data);
+          showToast('File Successfully Uploaded!');
         })
         .catch(error => {
           console.log("error: ", error);
@@ -180,7 +169,7 @@ function Upload() {
         if(file === undefined) {
             setSelectedFile(null)
             setUserFileName('');
-            console.log("file was removed?");
+            showToast('File Was Removed');
         }
         if(file !== null && file !== undefined) {
             setSelectedFile(file);
@@ -214,7 +203,6 @@ function Upload() {
           console.log('No file and size selected.');
           return;
         }
-
         const [width, height] = selectedSize.split('x');
         // Create a new FormData object to send data to the server
         const formData = new FormData();
@@ -223,7 +211,7 @@ function Upload() {
         formData.append('height', height);
 
         // Make a POST request to your server
-        Axios.post(myURL + 'resize', formData, {
+        Axios.post(myURL + '/resize', formData, {
           ...config,
           responseType: 'arraybuffer',
           onUploadProgress: (progressEvent) => {
@@ -244,7 +232,7 @@ function Upload() {
             setConversionProgress(0);
             // Store the image in the database
             storeImageInIndexedDB(arrayBuffer);
-            //saveMongo(arrayBuffer);
+            showToast('File Successfully Converted!');
           } else {
             console.error('Error during conversion: ', response.statusText);
             // Reset the conversion progress to 0 when an error occurs
@@ -330,7 +318,8 @@ function Upload() {
         </div>
         <div className={styles.divider}>
         </div>
-        </div>
+        <ToastContainer />
+      </div>
     );
 }
 

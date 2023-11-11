@@ -14,9 +14,10 @@ app.use(express.json());
 const s3 = new AWS.S3();
 const S3_BUCKET = 'clouda2-g30';
 
-//Test Endpoint
-app.post('/testing', upload.single("file"), (req, res) => {
-  console.log("Received file: ", req.file);
+// Base Endpoint
+app.get('/', (req, res) => {
+  const response = { message: 'Hello, World!' };
+  res.json(response);
 });
 
 // Upload to S3 endpoint
@@ -47,12 +48,6 @@ app.post('/upload', upload.single("file"), (req, res) => {
 
   // Provide a success response
   res.status(200).send('File ', key,  ' was uploaded to S3.');
-});
-
-// Define your routes here
-app.get('/', (req, res) => {
-  const response = { message: 'Hello, World!' };
-  res.json(response);
 });
 
 //Resize endpoint
